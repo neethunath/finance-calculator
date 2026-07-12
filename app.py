@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 
-# Page theme configuration mapped to the modern editorial light color palette
+# Page theme configuration
 st.set_page_config(
     page_title="Automotive Finance Calculator Dashboard", 
     layout="wide", 
@@ -10,11 +10,11 @@ st.set_page_config(
 
 # --- 1. DATA CATALOGS EXTRACTED FROM THE UPDATED TEMPLATES ---
 VEHICLE_CATALOG = {
-    "Attrage G16 (MY-2025)": {"base_price": 40400, "year": "2025", "vat_charges_fixed": 2290},
-    "Destinator PR (MY-2026)": {"base_price": 95900, "year": "2026", "vat_charges_fixed": 5360}
+    "Attrage G16 (MY-2025)": {"base_price": 40400, "year": "2025"},
+    "Destinator PR (MY-2026)": {"base_price": 95900, "year": "2026"}
 }
 
-# Add-ons items extracted explicitly from rows 8-14 of the new model sheets
+# Explicitly separated catalog inputs to prevent key conflicts
 ADDONS_CATALOG = {
     "2025": [
         {"name": "FO Ceramic+ Intr&Extr CeramicGold WdwTnt", "default_price": 0.0, "checked": False},
@@ -34,20 +34,16 @@ ADDONS_CATALOG = {
     ]
 }
 
-# Precise interest configurations mapping standard flat rates and subvention discounts
 STANDARD_INTEREST_RATE = 0.0249  
 SUBVENTION_MULTIPLIERS = {1: 0.0000, 2: 0.0339, 3: 0.0339, 4: 0.0678, 5: 0.1017}
 
 # --- 2. ADVANCED FINANCIAL ENGINE ---
 def calculate_deal_metrics(base_price, year, selected_addons, dp_percentage):
-    # Summing all active add-ons
     total_addons = sum([item['price'] for item in selected_addons])
     
-    # Capitalization steps mirroring rows 4-7
     vat_amount = base_price * 0.05
     vehicle_with_vat = base_price + vat_amount
     
-    # Calculated values including accessories and contracts
     full_value = vehicle_with_vat + total_addons
     down_payment = full_value * (dp_percentage / 100)
     finance_amount = full_value - down_payment
@@ -64,7 +60,6 @@ def calculate_deal_metrics(base_price, year, selected_addons, dp_percentage):
         sub_factor = SUBVENTION_MULTIPLIERS[years]
         subvention_discount = finance_amount * sub_factor
         
-        # Mapping exact structural subvention monthly rates
         if years == 1:
             subvention_emi = standard_emi
         else:
@@ -76,7 +71,7 @@ def calculate_deal_metrics(base_price, year, selected_addons, dp_percentage):
             "Tenure Loop": f"{years} Year(s) ({months} Mos)",
             "Standard EMI (AED)": f"{standard_emi:,.2f}",
             "Subvention Offer EMI (AED)": f"{subvention_emi:,.2f}",
-            "Monthly Profit/Savings (AED)": f"{monthly_savings:,.2f}",
+            "Monthly Savings (AED)": f"{monthly_savings:,.2f}",
             "Total Plan Interest (AED)": f"{total_interest:,.2f}"
         })
         
@@ -115,13 +110,17 @@ st.sidebar.subheader("📦 Add-Ons & Contract Inclusions")
 active_addons = []
 available_addons = ADDONS_CATALOG[model_year]
 
-for i, addon in enumerate(available_addons):
-    is_active = st.sidebar.checkbox(f"{addon['name']}", value=addon['checked'], key=f"cb_{model_year}_{i}")
+# Clean loop with absolutely unique keys per iteration to kill duplicate widget errors
+for idx, addon in enumerate(available_addons):
+    clean_key = f"chk_{model_year}_{idx}"
+    price_key = f"prc_{model_year}_{idx}"
+    
+    is_active = st.sidebar.checkbox(addon['name'], value=addon['checked'], key=clean_key)
     custom_addon_price = st.sidebar.number_input(
-        f"Price: {addon['name']} (AED)", 
+        f"└ Price (AED)", 
         value=float(addon['default_price']), 
         step=50.0, 
-        key=f"input_{model_year}_{i}"
+        key=price_key
     )
     if is_active:
         active_addons.append({"name": addon['name'], "price": custom_addon_price})
