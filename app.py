@@ -110,7 +110,7 @@ st.sidebar.subheader("📦 Add-Ons & Contract Inclusions")
 active_addons = []
 available_addons = ADDONS_CATALOG[model_year]
 
-# Clean loop with absolutely unique keys per iteration to kill duplicate widget errors
+# UI loop rendering independent elements safely
 for idx, addon in enumerate(available_addons):
     clean_key = f"chk_{model_year}_{idx}"
     price_key = f"prc_{model_year}_{idx}"
@@ -137,6 +137,7 @@ col1, col2 = st.columns([1, 1.6])
 with col1:
     st.subheader("📊 Transaction Value Stack")
     
+    # Cleaned: Removed all formatting markdown text wrappers that confuse pandas formatting engines
     summary_data = {
         "Financial Component": [
             "Base Vehicle Price", 
@@ -152,9 +153,9 @@ with col1:
             f"{s['vat_amount']:,.2f}",
             f"{s['vehicle_with_vat']:,.2f}",
             f"{s['total_addons']:,.2f}",
-            f"**{s['full_value']:,.2f}**",
-            f"**{s['down_payment']:,.2f}**",
-            f"**{s['finance_amount']:,.2f}**"
+            f"{s['full_value']:,.2f}",
+            f"{s['down_payment']:,.2f}",
+            f"{s['finance_amount']:,.2f}"
         ]
     }
     st.table(pd.DataFrame(summary_data))
