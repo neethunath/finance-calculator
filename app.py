@@ -17,16 +17,16 @@ VEHICLE_CATALOG = {
 # Add-ons items extracted explicitly from rows 8-14 of the new model sheets
 ADDONS_CATALOG = {
     "2025": [
-        {"name": "FO Ceramic+ Intr&Extr CeramicGold WdwTnt", "default_price": 0, "checked": False},
-        {"name": "FO Exterior ceramic All Cars SCOTCHGUARD", "default_price": 0, "checked": False},
-        {"name": "Extended Warranty", "default_price": 0, "checked": False},
+        {"name": "FO Ceramic+ Intr&Extr CeramicGold WdwTnt", "default_price": 0.0, "checked": False},
+        {"name": "FO Exterior ceramic All Cars SCOTCHGUARD", "default_price": 0.0, "checked": False},
+        {"name": "Extended Warranty", "default_price": 0.0, "checked": False},
         {"name": "VRI", "default_price": 1590.58, "checked": True},
         {"name": "Vehicle Insurance", "default_price": 3625.00, "checked": True},
         {"name": "RMC-10-70KMS", "default_price": 5400.00, "checked": True}
     ],
     "2026": [
         {"name": "FO Ceramic+ Intr&Extr CeramicGold WdwTnt", "default_price": 2700.00, "checked": True},
-        {"name": "FO Exterior ceramic All Cars SCOTCHGUARD", "default_price": 0, "checked": False},
+        {"name": "FO Exterior ceramic All Cars SCOTCHGUARD", "default_price": 0.0, "checked": False},
         {"name": "Extended Warranty", "default_price": 2000.00, "checked": True},
         {"name": "VRI", "default_price": 3722.92, "checked": True},
         {"name": "Vehicle Insurance", "default_price": 4081.14, "checked": True},
@@ -35,7 +35,7 @@ ADDONS_CATALOG = {
 }
 
 # Precise interest configurations mapping standard flat rates and subvention discounts
-STANDARD_INTEREST_RATE = 0.0249  # Updated baseline flat rate structure from sheet formulas
+STANDARD_INTEREST_RATE = 0.0249  
 SUBVENTION_MULTIPLIERS = {1: 0.0000, 2: 0.0339, 3: 0.0339, 4: 0.0678, 5: 0.1017}
 
 # --- 2. ADVANCED FINANCIAL ENGINE ---
@@ -68,7 +68,6 @@ def calculate_deal_metrics(base_price, year, selected_addons, dp_percentage):
         if years == 1:
             subvention_emi = standard_emi
         else:
-            # Subvention adjustments tracking row 6 formulas
             subvention_emi = standard_emi - (subvention_discount / months) if sub_factor > 0 else standard_emi
             
         monthly_savings = standard_emi - subvention_emi
@@ -116,13 +115,13 @@ st.sidebar.subheader("📦 Add-Ons & Contract Inclusions")
 active_addons = []
 available_addons = ADDONS_CATALOG[model_year]
 
-for addon in available_addons:
-    is_active = st.sidebar.checkbox(f"{addon['name']}", value=addon['checked'])
+for i, addon in enumerate(available_addons):
+    is_active = st.sidebar.checkbox(f"{addon['name']}", value=addon['checked'], key=f"cb_{model_year}_{i}")
     custom_addon_price = st.sidebar.number_input(
         f"Price: {addon['name']} (AED)", 
         value=float(addon['default_price']), 
         step=50.0, 
-        key=f"input_{addon['name']}"
+        key=f"input_{model_year}_{i}"
     )
     if is_active:
         active_addons.append({"name": addon['name'], "price": custom_addon_price})
