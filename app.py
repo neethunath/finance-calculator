@@ -6,12 +6,24 @@ import io
 
 st.set_page_config(page_title="Mitsubishi Finance Calculator", layout="wide")
 
+# Helper function to extract a clean parent model name
+def get_clean_model_name(raw_name):
+    raw_name_upper = raw_name.upper()
+    if 'ATTRAGE' in raw_name_upper: return 'Attrage'
+    elif 'MIRAGE' in raw_name_upper: return 'Mirage'
+    elif 'ASX' in raw_name_upper: return 'ASX'
+    elif 'ECLIPSE' in raw_name_upper: return 'Eclipse Cross'
+    elif 'XPANDER' in raw_name_upper: return 'Xpander'
+    elif 'OUTLANDER' in raw_name_upper: return 'Outlander'
+    elif 'MONTERO' in raw_name_upper: return 'Montero Sport'
+    elif 'DESTINATOR' in raw_name_upper: return 'Destinator'
+    return raw_name
+
 # ------------------------------------------------------------------
 # AUTOMATIC EXCEL DATA EXTRACTION ENGINE
 # ------------------------------------------------------------------
 @st.cache_data
 def load_all_vehicle_data(file_2025_path, file_2026_path):
-    # Nested mapping structure: catalog[year][vehicle_name][variant_code] = data
     catalog = {"2025": {}, "2026": {}}
     
     # --- 1. Parse 2025 File ---
@@ -22,15 +34,17 @@ def load_all_vehicle_data(file_2025_path, file_2026_path):
                 continue
             try:
                 df = pd.read_excel(xls_25, sheet_name=sheet, header=None)
-                name = str(df.iloc[4, 2]).strip()
+                raw_name = str(df.iloc[4, 2]).strip()
                 code = str(df.iloc[4, 3]).strip()
                 
-                if not name or name == "nan": name = sheet
+                if not raw_name or raw_name == "nan": raw_name = sheet
                 if not code or code == "nan": code = sheet.replace(" 25", "")
+                
+                model_name = get_clean_model_name(raw_name)
                 
                 base_price = float(df.iloc[6, 1])          
                 vat_charges = float(df.iloc[6, 5])         
-                interest_rate = float(df.iloc[18, 3])       
+                interest_rate = float(df.iloc[18, 3])  
                 
                 accessories = {}
                 for r_idx in range(10, 16):
@@ -47,10 +61,10 @@ def load_all_vehicle_data(file_2025_path, file_2026_path):
                             "default_checked": True if acc_status == "YES" else False
                         }
                 
-                if name not in catalog["2025"]:
-                    catalog["2025"][name] = {}
+                if model_name not in catalog["2025"]:
+                    catalog["2025"][model_name] = {}
                     
-                catalog["2025"][name][code] = {
+                catalog["2025"][model_name][code] = {
                     "base_price": base_price,
                     "interest_rate": interest_rate,
                     "vat_charges": vat_charges,
@@ -67,15 +81,21 @@ def load_all_vehicle_data(file_2025_path, file_2026_path):
                 continue
             try:
                 df = pd.read_excel(xls_26, sheet_name=sheet, header=None)
-                name = str(df.iloc[4, 2]).strip()
+                raw_name = str(df.iloc[4, 2]).strip()
                 code = str(df.iloc[4, 3]).strip()
                 
-                if not name or name == "nan": name = sheet
+                if not raw_name or raw_name == "nan": raw_name = sheet
                 if not code or code == "nan": code = sheet.replace(" 26", "")
+                
+                model_name = get_clean_model_name(raw_name)
                 
                 base_price = float(df.iloc[6, 1])          
                 vat_charges = float(df.iloc[6, 5])         
-                interest_rate = float(df.iloc[18, 3])       
+                
+                try:
+                    interest_rate = float(df.iloc[17, 3])
+                except:
+                    interest_rate = float(df.iloc[18, 3])
                 
                 accessories = {}
                 for r_idx in range(10, 16):
@@ -92,10 +112,10 @@ def load_all_vehicle_data(file_2025_path, file_2026_path):
                             "default_checked": True if acc_status == "YES" else False
                         }
                 
-                if name not in catalog["2026"]:
-                    catalog["2026"][name] = {}
+                if model_name not in catalog["2026"]:
+                    catalog["2026"][model_name] = {}
                     
-                catalog["2026"][name][code] = {
+                catalog["2026"][model_name][code] = {
                     "base_price": base_price,
                     "interest_rate": interest_rate,
                     "vat_charges": vat_charges,
@@ -106,13 +126,13 @@ def load_all_vehicle_data(file_2025_path, file_2026_path):
                 
     return catalog
 
-# Load catalog mapping using both tracked files
+# Load catalog files
 FILE_2025 = "NFC New VRI Project (2).xlsx"
 FILE_2026 = "NFC New VRI Project (1).xlsx"
 VEHICLE_CATALOG = load_all_vehicle_data(FILE_2025, FILE_2026)
 
 # ------------------------------------------------------------------
-# INTERFACE LAYOUT (SIDEBAR CASCADING DROPDOWNS)
+# INTERFACE LAYOUT (SAFE SIDEBAR CASCADING DROPDOWNS)
 # ------------------------------------------------------------------
 if not VEHICLE_CATALOG["2025"] and not VEHICLE_CATALOG["2026"]:
     st.error("Could not load vehicle datasets. Please verify your repository file allocations.")
@@ -120,20 +140,28 @@ else:
     with st.sidebar:
         st.header("🚗 Vehicle Selection")
         
-        # Dropdown 1: Choose Year
+        # 1. Choose Year
         available_years = sorted(list(VEHICLE_CATALOG.keys()))
         selected_year = st.selectbox("Select Model Year:", available_years)
         
-        # Dropdown 2: Choose Vehicle Name (Filtered by selected year)
+        # 2. Choose Clean Vehicle Name
         available_names = sorted(list(VEHICLE_CATALOG[selected_year].keys()))
         selected_name = st.selectbox("Select Vehicle Name:", available_names)
         
-        # Dropdown 3: Choose Variant Code (Filtered by selected year + name)
-        available_codes = sorted(list(VEHICLE_CATALOG[selected_year][selected_name].keys()))
-        selected_code = st.selectbox("Select Variant Code:", available_codes)
-        
-        # Retrieve the final filtered record data points
-        v_data = VEHICLE_CATALOG[selected_year][selected_name][selected_code]
+        # SAFEGUARD: Reset name instantly if state mismatch happens during year change
+        if selected_name not in VEHICLE_CATALOG[selected_year]:
+            selected_name = available_names[0] if available_names else None
+
+        if selected_name:
+            # 3. Choose Variant Code
+            available_codes = sorted(list(VEHICLE_CATALOG[selected_year][selected_name].keys()))
+            selected_code = st.selectbox("Select Variant Code:", available_codes)
+            
+            # Get target configurations
+            v_data = VEHICLE_CATALOG[selected_year][selected_name][selected_code]
+        else:
+            st.error("No vehicles available for this selection.")
+            st.stop()
         
         st.markdown("---")
         st.header("⚙️ Adjustments")
@@ -157,7 +185,7 @@ else:
                 selected_addons_total += info["price"]
 
     # ------------------------------------------------------------------
-    # MAIN AREA: CLEAN MATRIX PERFORMANCE DISPLAY
+    # MAIN AREA: CALCULATOR MATRICES
     # ------------------------------------------------------------------
     st.title("Mitsubishi Financial Matrix Calculator")
     st.markdown(f"### Currently Viewing: **{selected_name} - {selected_code} ({selected_year})**")
