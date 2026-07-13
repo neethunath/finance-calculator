@@ -212,7 +212,7 @@ else:
     st.markdown("---")
     
     # Calculate overall aggregate
-    total_financed_amount = (base_vehicle_price + selected_addons_total + rmc_cost) - calculated_downpayment
+    total_financed_amount = (base_vehicle_price + selected_addons_total + rmc_cost+vat) - calculated_downpayment
     
     tenures = [2, 3, 4, 5]
     emi_results = []
