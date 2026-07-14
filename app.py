@@ -283,19 +283,19 @@ else:
                 checked_addons_list.append({"name": f"Routine Maintenance Contract ({chosen_rmc})", "price": rmc_selected_cost, "vat_taxable": False})
 
         # ==========================================
-        # HIGH-FIDELITY EXCEL MATCHING MATH ENGINE (U19-BASED)
+        # HIGH-FIDELITY EXCEL MATCHING MATH ENGINE (U19-FIXED)
         # ==========================================
-        # Step 1: Replicate the dynamic U19/V19 total asset valuation formula from the sheet
-        u19_valuation_base = (
-            base_vehicle_price + 
-            acc_selected_price + 
-            ceramic_selected_price + 
-            exterior_selected_price + 
-            warranty_selected_price + 
-            rmc_selected_cost
-        ) * 1.05
+        # Step 1: Establish the true, complete template baseline value for U19 from the Excel file structure
+        # (Car Price + ALL baseline template accessory row values) * 1.05
+        baseline_template_pre_vat = base_vehicle_price
+        for name, info in v_data["accessories"].items():
+            if info["type_tag"] in ["STANDARD", "RMC"]:
+                baseline_template_pre_vat += info["price_raw"]
+                
+        # This yields exactly 112,560.00 AED for the Destinator PR
+        u19_valuation_base = baseline_template_pre_vat * 1.05
 
-        # Step 2: Calculate Vehicle Insurance directly using the U19 base value
+        # Step 2: Calculate Vehicle Insurance directly using the fixed U19 base value
         if is_insurance_selected:
             if selected_code in ["PR", "PRP", "HLP"]:
                 vehicle_insurance_cost = (u19_valuation_base * 0.03 + 510) * 1.05
@@ -308,7 +308,7 @@ else:
         else:
             vehicle_insurance_cost = 0.0
 
-        # Step 3: Calculate VRI premium directly using the U19 base value
+        # Step 3: Calculate VRI premium directly using the fixed U19 base value
         vri_calculated_cost = (u19_valuation_base * 3.15 * 1.05 / 100) if is_vri_selected else 0.0
 
         # Inject Insurance and VRI into checked_addons_list for reporting visibility
@@ -338,7 +338,7 @@ else:
 
         # Bank Fees (1.05% of final net financed principal)
         bank_processing_fee = finance_amount * 0.0105
-
+        
         # Controls Action Button
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("📊 Generate Complete Summary Report", use_container_width=True):
