@@ -211,7 +211,6 @@ else:
         is_insurance_selected = False
         
         for name, info in v_data["accessories"].items():
-            # Conditionally skip standard RMC checkbox if the drop-down menu is active
             if info["type_tag"] == "RMC" and override_rmc_active:
                 continue
                 
@@ -235,55 +234,54 @@ else:
                     is_insurance_selected = True
                 elif info["type_tag"] == "RMC":
                     rmc_selected_cost = p
-                    # Set vat_taxable=False because RMC values from sheet already include VAT
                     checked_addons_list.append({"name": name, "price": p, "vat_taxable": False})
                     
         # Render dynamic drop-down selection only if active
         if override_rmc_active:
             rmc_packages = ["None"] + list(RMC_RULES[selected_code].keys())
-            chosen_rmc = st.selectbox("Regional Maintenance Contract (RMC Dropdown):", rmc_packages)
+            chosen_rmc = st.selectbox("Routine Maintenance Contract (RMC):", rmc_packages)
             if chosen_rmc != "None":
                 rmc_selected_cost = RMC_RULES[selected_code][chosen_rmc]
-                checked_addons_list.append({"name": f"RMC Package ({chosen_rmc})", "price": rmc_selected_cost, "vat_taxable": False})
+                checked_addons_list.append({"name": f"Routine Maintenance Contract ({chosen_rmc})", "price": rmc_selected_cost, "vat_taxable": False})
 
         # ==========================================
-        # CORRECTED HIGH-FIDELITY MATH ENGINE
+        # HIGH-FIDELITY EXCEL MATCHING MATH ENGINE (U19-BASED)
         # ==========================================
-
-        # Step 1: Calculate the true Taxable Asset Base (Car + Standard Add-ons)
-        total_taxable_base = (
+        # Step 1: Replicate the dynamic U19/V19 total asset valuation formula from the sheet
+        # Formula: =(B7 + D10 + D11 + D12 + D13 + D16) * 1.05
+        u19_valuation_base = (
             base_vehicle_price + 
             acc_selected_price + 
             ceramic_selected_price + 
             exterior_selected_price + 
-            warranty_selected_price
-        )
+            warranty_selected_price + 
+            rmc_selected_cost
+        ) * 1.05
 
-        # Step 2: Correct the Vehicle Insurance Calculation 
-        # (Calculate strictly from Base Vehicle Price to prevent accessory inflation)
+        # Step 2: Calculate Vehicle Insurance directly using the U19 base value
         if is_insurance_selected:
             if selected_code in ["PR", "PRP", "HLP"]:
-                # Dynamic premium formula adjusted to run on base car value, applying 5% VAT once
-                vehicle_insurance_cost = (base_vehicle_price * 0.03 + 510) * 1.05
+                vehicle_insurance_cost = (u19_valuation_base * 0.03 + 510) * 1.05
             elif selected_code in ["H57", "P57", "H64", "H59", "P59", "H61", "P61"]:
-                vehicle_insurance_cost = (base_vehicle_price * 0.0275 + 510) * 1.05
+                vehicle_insurance_cost = (u19_valuation_base * 0.0275 + 510) * 1.05
             elif selected_code in ["EH40", "EH43"]:
-                vehicle_insurance_cost = (base_vehicle_price * 0.03 + 450) * 1.05
+                vehicle_insurance_cost = (u19_valuation_base * 0.03 + 450) * 1.05
             else:
-                # Standard flat-rate fallback from your sheet's matrix
                 vehicle_insurance_cost = 3690.0 if "Xpander" in selected_name else 3625.0
         else:
             vehicle_insurance_cost = 0.0
 
-        # Step 3: Correct the VRI Calculation (Removes the circular loop and double VAT)
-        # True asset value including single-layer VAT breakdown
-        asset_value_with_vat = total_taxable_base * 1.05 
+        # Step 3: Calculate VRI premium directly using the U19 base value
+        # Formula: =IF(C14="YES", U19 * 3.15 * 1.05 / 100, 0)
+        vri_calculated_cost = (u19_valuation_base * 3.15 * 1.05 / 100) if is_vri_selected else 0.0
 
-        # Calculate VRI premium strictly on the true asset value (applying 5% VAT cleanly)
-        vri_calculated_cost = (asset_value_with_vat * 0.0315 * 1.05) if is_vri_selected else 0.0
+        # Inject Insurance and VRI into checked_addons_list for reporting visibility
+        if is_vri_selected:
+            checked_addons_list.append({"name": "Value Retention Insurance (VRI)", "price": vri_calculated_cost, "vat_taxable": False})
+        if is_insurance_selected:
+            checked_addons_list.append({"name": "Vehicle Insurance", "price": vehicle_insurance_cost, "vat_taxable": False})
 
         # Step 4: Aggregate Final Balances
-        # Note: RMC is added here because it already includes retail VAT from your provider sheet
         excel_addons_total = (
             acc_selected_price + 
             ceramic_selected_price + 
@@ -294,8 +292,8 @@ else:
             rmc_selected_cost
         )
 
-        # Clean, non-compounded total 5% VAT tracking
-        total_vat_charges = (base_vehicle_price + total_taxable_base - base_vehicle_price) * 0.05
+        # Total 5% VAT tracking for base items
+        total_vat_charges = (base_vehicle_price + acc_selected_price + ceramic_selected_price + exterior_selected_price + warranty_selected_price) * 0.05
 
         # Final Contract Values
         full_vehicle_value_including_addons = base_vehicle_price + excel_addons_total + total_vat_charges
@@ -304,7 +302,7 @@ else:
 
         # Bank Fees (1.05% of final net financed principal)
         bank_processing_fee = finance_amount * 0.0105
-
+        
         # Controls Action Button
         st.markdown("<br>", unsafe_allow_html=True)
         if st.button("📊 Generate Complete Summary Report", use_container_width=True):
@@ -324,11 +322,11 @@ else:
 
         # SECTION 1: SUMMARY SECTION
         st.header("1. Summary Section")
-        cols1 = st.columns(4)
-        cols1[0].metric("Vehicle Model", f"{selected_name}")
-        cols1[1].metric("Total Vehicle Value (incl. VAT & Add-ons)", f"{full_vehicle_value_including_addons:,.2f} AED")
-        cols1[2].metric("Down Payment Amount", f"{calculated_downpayment:,.2f} AED")
-        cols1[3].metric("Total Finance Amount", f"{finance_amount:,.2f} AED")
+        col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+        col_s1.metric("Vehicle Model", f"{selected_name} ({selected_code})")
+        col_s2.metric("Total Vehicle Value", f"{base_vehicle_price:,.2f} AED")
+        col_s3.metric("Down Payment Amount", f"{calculated_downpayment:,.2f} AED")
+        col_s4.metric("Finance Amount", f"{finance_amount:,.2f} AED")
         st.markdown("---")
 
         # SECTION 2: EMI BREAKDOWN
@@ -364,13 +362,13 @@ else:
                 total_display_addons_price += (item_price + item_vat)
                 
                 addons_table_data.append({
-                    "Add-on Item": addon["name"],
-                    "Price Base (AED)": f"{item_price:,.2f} AED",
+                    "Selected Accessories / Services": addon["name"],
+                    "Individual Price (Base)": f"{item_price:,.2f} AED",
                     "VAT Amount (5%)": f"{item_vat:,.2f} AED" if addon["vat_taxable"] else "0.00 AED (VAT Pre-incl.)",
-                    "Total Value (incl. VAT)": f"{(item_price + item_vat):,.2f} AED"
+                    "Total Cost (incl. VAT)": f"{(item_price + item_vat):,.2f} AED"
                 })
             st.table(pd.DataFrame(addons_table_data))
-            st.write(f"**Total Summary Accessories Line (Total Gross Value):** {total_display_addons_price:,.2f} AED")
+            st.write(f"**Total Accessories Cost:** {total_display_addons_price:,.2f} AED")
         else:
             st.write("*No optional accessories selected.*")
         st.markdown("---")
@@ -379,26 +377,27 @@ else:
         st.header("4. Total Cash Outlay")
         registration_fee = v_data["registration_fee"]
         processing_fee_dp = v_data["processing_fee_dp"]
+        total_insurance_and_vri = vehicle_insurance_cost + vri_calculated_cost
         
-        # Grand Total Required to Take Car: Down-Payment + Registration + DP PF + Bank PF
+        # Grand total required to take the car
         grand_total_cash_outlay = calculated_downpayment + registration_fee + processing_fee_dp + bank_processing_fee
         
         col_out1, col_out2 = st.columns(2)
         with col_out1:
-            st.write(f"**Down Payment Required:** {calculated_downpayment:,.2f} AED")
-            st.write(f"**Registration Fee:** {registration_fee:,.2f} AED")
+            st.write(f"**Down Payment:** {calculated_downpayment:,.2f} AED")
+            st.write(f"**Accessories Total (Gross):** {total_display_addons_price:,.2f} AED")
         with col_out2:
-            st.write(f"**DP Processing Fee:** {processing_fee_dp:,.2f} AED")
-            st.write(f"**Bank Processing Fee (1.05% of Principal):** {bank_processing_fee:,.2f} AED")
+            st.write(f"**Insurance Costs (Vehicle + VRI):** {total_insurance_and_vri:,.2f} AED")
+            st.write(f"**Processing Fees (DP PF + Bank PF):** {(processing_fee_dp + bank_processing_fee):,.2f} AED")
             
-        st.markdown(f"### 🔑 **Grand Total Cash Required to Take Delivery:** {grand_total_cash_outlay:,.2f} AED")
+        st.markdown(f"### 🔑 **Grand Total Required to Take the Car:** {grand_total_cash_outlay:,.2f} AED")
         st.markdown("---")
 
-        # SECTION 5: ACTIONS
-        st.header("5. Action Toolbar")
+        # SECTION 5: BUTTONS
+        st.header("5. Buttons")
         col_btn1, col_btn2, col_btn3 = st.columns(3)
         with col_btn1:
-            if st.button("⬅️ Modify Parameters (Back to Input)", use_container_width=True):
+            if st.button("⬅️ Back to Input", use_container_width=True):
                 st.session_state.view_state = "input"
                 st.rerun()
         with col_btn2:
@@ -406,11 +405,11 @@ else:
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                 pd.DataFrame(emi_results).to_excel(writer, index=False, sheet_name="EMI Matrix")
             st.download_button(
-                label="📥 Save Summary as Excel Document",
+                label="💾 Save as Excel / PDF Document",
                 data=buffer.getvalue(),
-                file_name=f"{selected_name.replace(' ', '_')}_{selected_code}_Summary_Report.xlsx",
+                file_name=f"{selected_name.replace(' ', '_')}_Summary.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
         with col_btn3:
-            st.button("✉️ Email Summary PDF (Placeholder)", use_container_width=True, disabled=True)
+            st.button("✉️ Email Results", use_container_width=True, disabled=True)
