@@ -297,12 +297,19 @@ else:
 
         # Step 2: Calculate Vehicle Insurance directly using the fixed U19 base value
         if is_insurance_selected:
-            if selected_code in ["PR", "PRP", "HLP"]:
+            # Group A: 3% Premium Rate + 510 AED Fee
+            if selected_code in ["PR", "PRP", "HLP", "G08", "G09", "G31", "PRL"]:
                 vehicle_insurance_cost = (u19_valuation_base * 0.03 + 510) * 1.05
-            elif selected_code in ["H57", "P57", "H64", "H59", "P59", "H61", "P61"]:
+                
+            # Group B: 2.75% Premium Rate + 510 AED Fee
+            elif selected_code in ["H57", "P57", "H64", "H59", "P59", "H61", "P61", "H62", "P62"]:
                 vehicle_insurance_cost = (u19_valuation_base * 0.0275 + 510) * 1.05
-            elif selected_code in ["EH40", "EH43"]:
+                
+            # Group C: 3% Premium Rate + 450 AED Fee
+            elif selected_code in ["EH40", "EH43", "EH41"]:
                 vehicle_insurance_cost = (u19_valuation_base * 0.03 + 450) * 1.05
+                
+            # Fallback Matrix (Flat-rate models)
             else:
                 vehicle_insurance_cost = 3690.0 if "Xpander" in selected_name else 3625.0
         else:
