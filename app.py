@@ -4,16 +4,17 @@ import numpy as np
 import os
 import io
 
+# Set configuration at the absolute top
 st.set_page_config(page_title="Mitsubishi Financial Matrix Calculator", layout="wide")
 
 # ==========================================
-# CUSTOM UX/UI STYLING ENGINE
+# CUSTOM UX/UI STYLING ENGINE (AMETHYSTA UPDATE)
 # ==========================================
 st.markdown(
     """
     <style>
     /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Karma:wght@400;600&family=Playfair+Display:ital,wght@0,600;1,400&family=Quicksand:wght@500;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Karma:wght@400;600&family=Amethysta&family=Quicksand:wght@500;700&display=swap');
 
     /* Anthropic Style Background & Global Font Settings */
     .stApp {
@@ -28,15 +29,15 @@ st.markdown(
     h1, [data-testid="stHeader"] {
         font-family: 'Quicksand', sans-serif !important;
         font-weight: 700 !important;
-        font-size: 2.25rem !important; /* Balanced UX header scale */
+        font-size: 2.25rem !important;
         color: #191919 !important;
         letter-spacing: -0.02em;
     }
 
-    /* Smaller Headings (H2, H3) - Playfair Display */
+    /* Smaller Headings & Numeric Labels (H2, H3) - Amethysta */
     h2, h3, h4, h5, h6 {
-        font-family: 'Playfair Display', serif !important;
-        font-weight: 600 !important;
+        font-family: 'Amethysta', serif !important;
+        font-weight: 400 !important;
         font-size: 1.5rem !important; /* UX Subheading scale */
         color: #383838 !important;
         margin-top: 1.5rem !important;
@@ -410,7 +411,7 @@ else:
         st.info("Configure your vehicle specs, accessories, and bank details in the sidebar panel. Then click **'Generate Complete Summary Report'** to run the matching Excel calculation engine.")
         
     elif st.session_state.view_state == "summary":
-        st.title("📄 High-Fidelity Financial Summary Report")
+        st.title("📄 Mitsubishi Financial Matrix Calculator")
         st.subheader(f"Unit Selected: {selected_name} — Variant {selected_code} ({selected_year})")
         st.markdown("---")
 
