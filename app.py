@@ -115,13 +115,11 @@ def load_all_vehicle_data(vehicle_file_path):
                 label = cell_label if (cell_label and cell_label != "nan") else default_label
                 is_checked = (status == "YES")
                 
-                # Retrieve raw sheet values as baseline rates
                 try:
                     price_val = float(df.iloc[row_idx - 1, 3])
                 except:
                     price_val = 0.0
                 
-                # Tag system features
                 accessories[label] = {
                     "price_raw": price_val,
                     "default_checked": is_checked,
@@ -160,7 +158,7 @@ if "view_state" not in st.session_state:
 # SIDEBAR - CONFIGURATION INTERFACE
 # ------------------------------------------------------------------
 if not VEHICLE_CATALOG["2025"] and not VEHICLE_CATALOG["2026"]:
-    st.error(f"Could not load vehicle datasets from '{FILE_VEHICLES}'. Please confirm it is stored in your repo.")
+    st.error(f"Could not load vehicle datasets from '{FILE_VEHICLES}'.")
 else:
     with st.sidebar:
         st.header("🚗 Configuration Console")
@@ -199,14 +197,13 @@ else:
         st.markdown("---")
         st.subheader("➕ Accessories & Services Checklists")
         
-        # Build live variables to replicate exact Sheet Row-Formulas
-        acc_selected_price = 0.0   # Row 10
-        ceramic_selected_price = 0.0 # Row 11
-        exterior_selected_price = 0.0 # Row 12
-        warranty_selected_price = 0.0 # Row 13
-        rmc_selected_cost = 0.0     # Row 16
+        acc_selected_price = 0.0   
+        ceramic_selected_price = 0.0 
+        exterior_selected_price = 0.0 
+        warranty_selected_price = 0.0 
+        rmc_selected_cost = 0.0     
         
-        # Override RMC with lookup-table rule if present
+        # Check if dynamic RMC catalog rules override standard inputs
         override_rmc_active = (RMC_RULES and selected_code in RMC_RULES)
         
         checked_addons_list = []
@@ -214,6 +211,10 @@ else:
         is_insurance_selected = False
         
         for name, info in v_data["accessories"].items():
+            # Conditionally skip standard RMC checkbox if the drop-down menu is active
+            if info["type_tag"] == "RMC" and override_rmc_active:
+                continue
+                
             checked = st.checkbox(f"{name} (+{info['price_raw']:,.2f} AED)", value=info["default_checked"])
             
             if checked:
@@ -232,43 +233,44 @@ else:
                     is_vri_selected = True
                 elif info["type_tag"] == "INSURANCE":
                     is_insurance_selected = True
-                elif info["type_tag"] == "RMC" and not override_rmc_active:
+                elif info["type_tag"] == "RMC":
                     rmc_selected_cost = p
-                    checked_addons_list.append({"name": name, "price": p, "vat_taxable": True})
+                    # Set vat_taxable=False because RMC values from sheet already include VAT
+                    checked_addons_list.append({"name": name, "price": p, "vat_taxable": False})
                     
-        # Apply external dynamic RMC table if detected
+        # Render dynamic drop-down selection only if active
         if override_rmc_active:
             rmc_packages = ["None"] + list(RMC_RULES[selected_code].keys())
-            chosen_rmc = st.selectbox("Dynamic Regional Maintenance Contract (RMC):", rmc_packages)
+            chosen_rmc = st.selectbox("Regional Maintenance Contract (RMC Dropdown):", rmc_packages)
             if chosen_rmc != "None":
                 rmc_selected_cost = RMC_RULES[selected_code][chosen_rmc]
-                checked_addons_list.append({"name": f"RMC Package ({chosen_rmc})", "price": rmc_selected_cost, "vat_taxable": True})
+                checked_addons_list.append({"name": f"RMC Package ({chosen_rmc})", "price": rmc_selected_cost, "vat_taxable": False})
 
         # --------------------------------------------------------------
         # HIGH-FIDELITY EXCEL CORE MATH REPLICATION ENGINE
         # --------------------------------------------------------------
-        # V19 Formula: (Base Price + Acc + Ceramic + Exterior + Warranty + RMC) * 1.05
+        # Base valuation value for VRI calculations
         total_taxable_base = (
             base_vehicle_price + 
             acc_selected_price + 
             ceramic_selected_price + 
             exterior_selected_price + 
-            warranty_selected_price + 
-            rmc_selected_cost
+            warranty_selected_price
         )
-        v19_valuation = total_taxable_base * 1.05
+        # RMC is added as a non-taxable base addition since it already has VAT
+        v19_valuation = (total_taxable_base * 1.05) + rmc_selected_cost
         
         # Row 14 VRI Formula: V19 * 3.15% * 1.05
         vri_calculated_cost = (v19_valuation * 0.0315 * 1.05) if is_vri_selected else 0.0
         if is_vri_selected:
             checked_addons_list.append({"name": "Value Retention Insurance (VRI)", "price": vri_calculated_cost, "vat_taxable": False})
             
-        # Row 15 Vehicle Insurance Formula: Base Price * 3% + 130 AED (replicates =(B7*3%)+10+120)
+        # Row 15 Vehicle Insurance Formula: Base Price * 3% + 130 AED
         vehicle_insurance_cost = (base_vehicle_price * 0.03 + 130) if is_insurance_selected else 0.0
         if is_insurance_selected:
             checked_addons_list.append({"name": "Vehicle Insurance", "price": vehicle_insurance_cost, "vat_taxable": False})
 
-        # Total Add-Ons Cost (Row 17 Value: SUM D10:D16)
+        # Total Add-Ons Cost (SUM of baseline accessory metrics)
         excel_addons_total = (
             acc_selected_price + 
             ceramic_selected_price + 
@@ -279,18 +281,17 @@ else:
             rmc_selected_cost
         )
         
-        # Total VAT Charges: 5% VAT on base vehicle price and standard taxable add-ons
+        # Calculate exactly 5% VAT *only* on the base vehicle price and taxable add-ons
         vat_vehicle = base_vehicle_price * 0.05
         vat_addons_taxable = (
             acc_selected_price + 
             ceramic_selected_price + 
             exterior_selected_price + 
-            warranty_selected_price + 
-            rmc_selected_cost
+            warranty_selected_price
         ) * 0.05
         total_vat_charges = vat_vehicle + vat_addons_taxable
         
-        # G7: Full Vehicle Value Including Add-Ons (B7 + E7 [Add-Ons] + F7 [Total VAT])
+        # Full Vehicle Value Including Add-Ons (Base Vehicle Price + Addons Total + Total VAT Charges)
         full_vehicle_value_including_addons = base_vehicle_price + excel_addons_total + total_vat_charges
         
         # H7 Down Payment: G7 * DP %
@@ -353,16 +354,21 @@ else:
         st.header("3. Accessories Breakdown")
         if checked_addons_list:
             addons_table_data = []
+            total_display_addons_price = 0.0
+            
             for addon in checked_addons_list:
                 item_price = addon["price"]
                 item_vat = (item_price * 0.05) if addon["vat_taxable"] else 0.0
+                total_display_addons_price += (item_price + item_vat)
+                
                 addons_table_data.append({
                     "Add-on Item": addon["name"],
-                    "Price (AED)": f"{item_price:,.2f} AED",
-                    "VAT Amount (5%)": f"{item_vat:,.2f} AED" if addon["vat_taxable"] else "0.00 AED (VAT Pre-incl./Exempt)"
+                    "Price Base (AED)": f"{item_price:,.2f} AED",
+                    "VAT Amount (5%)": f"{item_vat:,.2f} AED" if addon["vat_taxable"] else "0.00 AED (VAT Pre-incl.)",
+                    "Total Value (incl. VAT)": f"{(item_price + item_vat):,.2f} AED"
                 })
             st.table(pd.DataFrame(addons_table_data))
-            st.write(f"**Total Accessories (Sum of Add-ons):** {excel_addons_total:,.2f} AED")
+            st.write(f"**Total Summary Accessories Line (Total Gross Value):** {total_display_addons_price:,.2f} AED")
         else:
             st.write("*No optional accessories selected.*")
         st.markdown("---")
@@ -394,7 +400,6 @@ else:
                 st.session_state.view_state = "input"
                 st.rerun()
         with col_btn2:
-            # Excel export script
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
                 pd.DataFrame(emi_results).to_excel(writer, index=False, sheet_name="EMI Matrix")
