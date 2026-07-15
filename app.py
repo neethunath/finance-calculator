@@ -444,7 +444,7 @@ else:
         st.markdown("---")
 
         # SECTION 1: SUMMARY SECTION
-        st.header("1. Summary Section")
+        st.header("Financial Overview")
         col_s1, col_s2, col_s3 = st.columns(3)
         col_s1.metric("Total Vehicle Value", f"{full_vehicle_value_including_addons:,.2f} AED") 
         col_s2.metric("Down Payment Amount", f"{calculated_downpayment:,.2f} AED")
