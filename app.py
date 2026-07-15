@@ -445,11 +445,10 @@ else:
 
         # SECTION 1: SUMMARY SECTION
         st.header("1. Summary Section")
-        col_s1, col_s2, col_s3, col_s4 = st.columns(4)
-        col_s1.metric("Vehicle Model", f"{selected_name} ({selected_code})")
-        col_s2.metric("Total Vehicle Value", f"{full_vehicle_value_including_addons:,.2f} AED") 
-        col_s3.metric("Down Payment Amount", f"{calculated_downpayment:,.2f} AED")
-        col_s4.metric("Finance Amount", f"{finance_amount:,.2f} AED")
+        col_s1, col_s2, col_s3 = st.columns(3)
+        col_s1.metric("Total Vehicle Value", f"{full_vehicle_value_including_addons:,.2f} AED") 
+        col_s2.metric("Down Payment Amount", f"{calculated_downpayment:,.2f} AED")
+        col_s3.metric("Finance Amount", f"{finance_amount:,.2f} AED")
         st.markdown("---")
 
         # SECTION 2: EMI BREAKDOWN
