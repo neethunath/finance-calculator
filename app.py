@@ -516,11 +516,14 @@ else:
         st.markdown("---")
 
         # SECTION 5: BUTTONS
-        col_btn1, col_btn2, col_btn3 = st.columns(3)
+        # Center-aligned Action Buttons
+        col_space_left, col_btn1, col_btn2, col_space_right = st.columns([1, 2, 2, 1])
+        
         with col_btn1:
             if st.button("⬅️ Back to Input", use_container_width=True):
                 st.session_state.view_state = "input"
                 st.rerun()
+                
         with col_btn2:
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -532,5 +535,3 @@ else:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True
             )
-        with col_btn3:
-            st.button("✉️ Email Results", use_container_width=True, disabled=True)
