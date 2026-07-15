@@ -375,7 +375,7 @@ else:
             ceramic_selected_price + 
             exterior_selected_price +  
             warranty_selected_price + 
-            rmc_selected_cost
+            (rmc_selected_cost / 1.05)
         ) * 1.05
 
         # Step 2: Calculate Vehicle Insurance directly using the dynamic U19 base value
