@@ -271,7 +271,8 @@ else:
         down_payment_pct = st.slider("Down Payment Percentage (%):", 0, 100, 20) / 100.0
 
         st.markdown("---")
-        st.subheader("➕ Accessories & Services Checklists")
+        # Change 3: Changed the subheader to "Custom Accessories"
+        st.subheader("➕ Custom Accessories & Services Checklists")
         
         acc_selected_price = 0.0   
         ceramic_selected_price = 0.0 
@@ -329,7 +330,12 @@ else:
             else:
                 display_price = info["price_raw"]
 
-            checked = st.checkbox(f"{name} (+{display_price:,.2f} AED)", value=info["default_checked"])
+            # Change 4: Intercept the "Exterior Protection" key and display your custom label on screen
+            display_name = name
+            if "EXTERIOR" in name.upper() or "SCOTCH" in name.upper():
+                display_name = "FO Exterior Ceramic All Cars SCOTCHGUARD"
+
+            checked = st.checkbox(f"{display_name} (+{display_price:,.2f} AED)", value=info["default_checked"])
             
             if checked:
                 if info["type_tag"] == "STANDARD":
@@ -341,14 +347,14 @@ else:
                         warranty_selected_price = display_price
                     else:
                         acc_selected_price = display_price
-                    checked_addons_list.append({"name": name, "price": display_price, "vat_taxable": True})
+                    checked_addons_list.append({"name": display_name, "price": display_price, "vat_taxable": True})
                 elif info["type_tag"] == "VRI":
                     is_vri_selected = True
                 elif info["type_tag"] == "INSURANCE":
                     is_insurance_selected = True
                 elif info["type_tag"] == "RMC":
                     rmc_selected_cost = display_price
-                    checked_addons_list.append({"name": name, "price": display_price, "vat_taxable": False})
+                    checked_addons_list.append({"name": display_name, "price": display_price, "vat_taxable": False})
                     
         # Render dynamic drop-down selection only if active
         if override_rmc_active:
@@ -357,6 +363,71 @@ else:
             if chosen_rmc != "None":
                 rmc_selected_cost = RMC_RULES[selected_code][chosen_rmc]
                 checked_addons_list.append({"name": f"Routine Maintenance Contract ({chosen_rmc})", "price": rmc_selected_cost, "vat_taxable": False})
+
+        
+        # ==========================================
+        # DYNAMIC EXCEL MATCHING MATH ENGINE (U19-DYNAMIC)
+        # ==========================================
+        # Step 1: Calculate U19 dynamically based ONLY on selected accessories
+        u19_valuation_base = (
+            base_vehicle_price + 
+            acc_selected_price + 
+            ceramic_selected_price + 
+            exterior_selected_price +  # FO Exterior Ceramic All Cars SCOTCHGUARD
+            warranty_selected_price + 
+            rmc_selected_cost
+        ) * 1.05
+
+        # Step 2: Calculate Vehicle Insurance directly using the dynamic U19 base value
+        if is_insurance_selected:
+            if selected_code in ["PR", "PRP", "HLP", "G08", "G09", "G31", "PRL"]:
+                vehicle_insurance_cost = (u19_valuation_base * 0.03 + 510) * 1.05
+            elif selected_code in ["H57", "P57", "H64", "H59", "P59", "H61", "P61", "H62", "P62"]:
+                vehicle_insurance_cost = (u19_valuation_base * 0.0275 + 510) * 1.05
+            elif selected_code in ["EH40", "EH43", "EH41"]:
+                vehicle_insurance_cost = (u19_valuation_base * 0.03 + 450) * 1.05
+            else:
+                vehicle_insurance_cost = 3690.0 if "Xpander" in selected_name else 3625.0
+        else:
+            vehicle_insurance_cost = 0.0
+
+        # Step 3: Calculate VRI premium directly using the dynamic U19 base value
+        vri_calculated_cost = (u19_valuation_base * 3.15 * 1.05 / 100) if is_vri_selected else 0.0
+
+        # Inject Insurance and VRI into checked_addons_list for reporting visibility
+        if is_vri_selected:
+            checked_addons_list.append({"name": "Value Retention Insurance (VRI)", "price": vri_calculated_cost, "vat_taxable": False})
+        if is_insurance_selected:
+            checked_addons_list.append({"name": "Vehicle Insurance", "price": vehicle_insurance_cost, "vat_taxable": False})
+
+        # Step 4: Aggregate Final Balances
+        excel_addons_total = (
+            acc_selected_price + 
+            ceramic_selected_price + 
+            exterior_selected_price + 
+            warranty_selected_price + 
+            vri_calculated_cost + 
+            vehicle_insurance_cost + 
+            rmc_selected_cost
+        )
+
+        # Total 5% VAT tracking for standard taxable accessories
+        total_vat_charges = (base_vehicle_price + acc_selected_price + ceramic_selected_price + exterior_selected_price + warranty_selected_price) * 0.05
+
+        # Final Contract Values
+        full_vehicle_value_including_addons = base_vehicle_price + excel_addons_total + total_vat_charges
+        calculated_downpayment = full_vehicle_value_including_addons * down_payment_pct
+        finance_amount = full_vehicle_value_including_addons - calculated_downpayment
+
+        # Split Processing Fees
+        # 1. DP PF (Down Payment Processing Fee) -> typically a flat registration/admin fee or flat 520 / 1000 AED based on bank setup
+        dp_processing_fee = 520.0  # Adjust this flat rate or bank criteria as needed
+        
+        # 2. Bank PF (Bank Processing Fee) -> 1.05% of final net financed principal
+        bank_processing_fee = finance_amount * 0.0105
+
+        # Calculate Cash Outlay EXCLUDING Insurance Costs
+        total_cash_outlay = (calculated_downpayment + dp_processing_fee + bank_processing_fee)
 
         # ==========================================
         # DYNAMIC EXCEL MATCHING MATH ENGINE (U19-DYNAMIC)
@@ -438,6 +509,25 @@ else:
         st.title("📄 Mitsubishi Financial Matrix Calculator")
         st.subheader(f"Unit Selected: {selected_name} — Variant {selected_code} ({selected_year})")
         st.markdown("---")
+
+        # Under the metric output block:
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Vehicle Value", f"{full_vehicle_value_including_addons:,.2f} AED")
+        with col2:
+            st.metric("Down Payment (DP)", f"{calculated_downpayment:,.2f} AED")
+        with col3:
+            # Displaying total cash outlay (with insurance subtracted)
+            st.metric("Total Cash Outlay", f"{total_cash_outlay:,.2f} AED")
+        with col4:
+            st.metric("Financed Amount", f"{finance_amount:,.2f} AED")
+
+        st.markdown("### 💵 Fees & Processing Splits")
+        col_fee1, col_fee2 = st.columns(2)
+        with col_fee1:
+            st.metric("DP Processing Fee (DP PF)", f"{dp_processing_fee:,.2f} AED")
+        with col_fee2:
+            st.metric("Bank Processing Fee (Bank PF)", f"{bank_processing_fee:,.2f} AED")
 
         # SECTION 1: SUMMARY SECTION
         st.header("1. Summary Section")
