@@ -516,7 +516,6 @@ else:
         st.markdown("---")
 
         # SECTION 5: BUTTONS
-        st.header("5. Buttons")
         col_btn1, col_btn2, col_btn3 = st.columns(3)
         with col_btn1:
             if st.button("⬅️ Back to Input", use_container_width=True):
