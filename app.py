@@ -378,18 +378,33 @@ else:
             (rmc_selected_cost / 1.05)
         ) * 1.05
 
-        # Step 2: Calculate Vehicle Insurance directly using the dynamic U19 base value
+        # Insurance calculation
+        # Step 2: Calculate Vehicle Insurance directly using the fixed U19 base value
         if is_insurance_selected:
-            if selected_code in ["PR", "PRP", "HLP", "G08", "G09", "G31", "PRL"]:
+            # Ensure selected_code is a string and stripped of whitespace
+            code = str(selected_code).strip().upper()
+            name = str(selected_name)
+
+            # Group A: Starts with PR, HLP, or matches specific G-codes
+            # Captures variants like PR, PRP, PRL, PRX, etc.
+            if code.startswith(('PR', 'HLP')) or code in ["G08", "G09", "G31"]:
                 vehicle_insurance_cost = (u19_valuation_base * 0.03 + 510) * 1.05
-            elif selected_code in ["H57", "P57", "H64", "H59", "P59", "H61", "P61", "H62", "P62"]:
+
+            # Group B: Starts with H or P followed by 57, 59, 61, 62, 64
+            # Captures variants like H57, P57, H57alpha, etc.
+            elif code.startswith(('H', 'P')) and any(num in code for num in ["57", "59", "61", "62", "64"]):
                 vehicle_insurance_cost = (u19_valuation_base * 0.0275 + 510) * 1.05
-            elif selected_code in ["EH40", "EH43", "EH41"]:
+
+            # Group C: Starts with EH followed by 40, 41, 43
+            elif code.startswith('EH') and any(num in code for num in ["40", "41", "43"]):
                 vehicle_insurance_cost = (u19_valuation_base * 0.03 + 450) * 1.05
+
+            # Fallback Matrix (Flat-rate models)
             else:
-                vehicle_insurance_cost = 3690.0 if "Xpander" in selected_name else 3625.0
+                vehicle_insurance_cost = 3690.0 if "Xpander" in name else 3625.0
         else:
             vehicle_insurance_cost = 0.0
+        
 
         # Step 3: Calculate VRI premium directly using the dynamic U19 base value
         vri_calculated_cost = (u19_valuation_base * 3.15 * 1.05 / 100) if is_vri_selected else 0.0
