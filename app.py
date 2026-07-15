@@ -359,19 +359,19 @@ else:
                 checked_addons_list.append({"name": f"Routine Maintenance Contract ({chosen_rmc})", "price": rmc_selected_cost, "vat_taxable": False})
 
         # ==========================================
-        # HIGH-FIDELITY EXCEL MATCHING MATH ENGINE (U19-FIXED)
+        # DYNAMIC EXCEL MATCHING MATH ENGINE (U19-DYNAMIC)
         # ==========================================
-        # Step 1: Establish the true, complete template baseline value for U19 from the Excel file structure
-        # (Car Price + ALL baseline template accessory row values) * 1.05
-        baseline_template_pre_vat = base_vehicle_price
-        for name, info in v_data["accessories"].items():
-            if info["type_tag"] in ["STANDARD", "RMC"]:
-                baseline_template_pre_vat += info["price_raw"]
-                
-        # This yields exactly 112,560.00 AED for the Destinator PR
-        u19_valuation_base = baseline_template_pre_vat * 1.05
+        # Step 1: Calculate U19 dynamically based ONLY on the selected/checked accessories
+        u19_valuation_base = (
+            base_vehicle_price + 
+            acc_selected_price + 
+            ceramic_selected_price + 
+            exterior_selected_price + 
+            warranty_selected_price + 
+            rmc_selected_cost
+        ) * 1.05
 
-        # Step 2: Calculate Vehicle Insurance directly using the fixed U19 base value
+        # Step 2: Calculate Vehicle Insurance directly using the dynamic U19 base value
         if is_insurance_selected:
             # Group A: 3% Premium Rate + 510 AED Fee
             if selected_code in ["PR", "PRP", "HLP", "G08", "G09", "G31", "PRL"]:
@@ -391,7 +391,7 @@ else:
         else:
             vehicle_insurance_cost = 0.0
 
-        # Step 3: Calculate VRI premium directly using the fixed U19 base value
+        # Step 3: Calculate VRI premium directly using the dynamic U19 base value
         vri_calculated_cost = (u19_valuation_base * 3.15 * 1.05 / 100) if is_vri_selected else 0.0
 
         # Inject Insurance and VRI into checked_addons_list for reporting visibility
