@@ -436,7 +436,7 @@ else:
     # ------------------------------------------------------------------
     if st.session_state.view_state == "input":
         st.title("Mitsubishi Financial Dashboard")
-        st.info("Configure your vehicle specs, accessories, and bank details in the sidebar panel. Then click **'Generate Complete Summary Report'** to run the matching Excel calculation engine.")
+        st.info("Configure your vehicle specs, accessories, and bank details in the sidebar panel. Then click **'Generate Summary'** to run the matching Excel calculation engine.")
         
     elif st.session_state.view_state == "summary":
         st.title("📄 Mitsubishi Financial Matrix Calculator")
