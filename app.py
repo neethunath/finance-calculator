@@ -401,7 +401,11 @@ else:
 
             # Fallback Matrix (Flat-rate models)
             else:
-                vehicle_insurance_cost = 3690.0 if "Xpander" in name else 3625.0
+                # Group Destinator with Xpander for the higher flat rate, otherwise default to 3625.0
+                if any(model in name for model in ["Xpander", "Destinator"]):
+                vehicle_insurance_cost = 3690.0
+                else:
+                vehicle_insurance_cost = 3625.0
         else:
             vehicle_insurance_cost = 0.0
         
