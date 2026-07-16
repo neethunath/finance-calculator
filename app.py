@@ -386,8 +386,8 @@ else:
             name = str(selected_name)
 
             # Group A: Starts with PR, HLP, or matches specific G-codes
-            # Captures variants like PR, PRP, PRL, PRX, etc.
-            if code.startswith(('PR', 'HLP')) or code in ["G08", "G09", "G31"]:
+            # Captures variants like PR, PRP, PRL, PRX, and all Outlander G-codes
+            if code.startswith(('PR', 'HLP', 'G')):
                 vehicle_insurance_cost = (u19_valuation_base * 0.03 + 510) * 1.05
 
             # Group B: Starts with H or P followed by 57, 59, 61, 62, 64
