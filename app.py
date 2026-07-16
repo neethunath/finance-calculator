@@ -317,17 +317,31 @@ else:
             # Determine dynamic checkbox label cost
             if info["type_tag"] == "VRI":
                 display_price = temp_u19 * 3.15 * 1.05 / 100
+                
             elif info["type_tag"] == "INSURANCE":
-                if selected_code in ["PR", "PRP", "HLP"]:
+                # Ensure selected_code is sanitized
+                code = str(selected_code).strip().upper()
+                name = str(selected_name)
+
+                # Group A: Starts with PR, HLP, or any G-code (Outlanders)
+                if code.startswith(('PR', 'HLP', 'G')):
                     display_price = (temp_u19 * 0.03 + 510) * 1.05
-                elif selected_code in ["H57", "P57", "H64", "H59", "P59", "H61", "P61"]:
+
+                # Group B: Starts with H or P followed by 57, 59, 61, 62, 64
+                elif code.startswith(('H', 'P')) and any(num in code for num in ["57", "59", "61", "62", "64"]):
                     display_price = (temp_u19 * 0.0275 + 510) * 1.05
-                elif selected_code in ["EH40", "EH43"]:
+
+                # Group C: Starts with EH followed by 40, 41, 43
+                elif code.startswith('EH') and any(num in code for num in ["40", "41", "43"]):
                     display_price = (temp_u19 * 0.03 + 450) * 1.05
+
+                # Fallback Matrix (Flat-rate models)
                 else:
-                    display_price = 3690.0 if "Xpander" in selected_name else 3625.0
-            else:
-                display_price = info["price_raw"]
+                    # Group Destinator with Xpander for the higher flat rate
+                    if any(model in name for model in ["Xpander", "Destinator"]):
+                        display_price = 3690.0
+                    else:
+                        display_price = 3625.0
 
             # Intercept accessory text labels dynamically from Excel
             display_name = name
