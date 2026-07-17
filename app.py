@@ -314,6 +314,9 @@ else:
             if info["type_tag"] == "RMC" and override_rmc_active:
                 continue
             
+            # Initialize display_price to prevent NameError
+            display_price = 0.0
+
             # Determine dynamic checkbox label cost
             if info["type_tag"] == "VRI":
                 display_price = temp_u19 * 3.15 * 1.05 / 100
