@@ -267,15 +267,20 @@ else:
         st.subheader("🏦 Financial Provider Rates")
         
         if BANK_RULES:
+            # We keep the banks sorted alphabetically
             bank_options = sorted(list(BANK_RULES.keys()))
             selected_bank = st.selectbox("Select Institution:", bank_options)
-            bracket_options = sorted(list(BANK_RULES[selected_bank].keys()))
+    
+            # FIX: Simply pull the keys as a list. Because of OrderedDict, 
+            # they will be in the exact order they appeared in the Excel sheet!
+            bracket_options = list(BANK_RULES[selected_bank].keys())
+    
             selected_bracket = st.selectbox("Income Bracket Selection:", bracket_options)
             fetched_roi = BANK_RULES[selected_bank][selected_bracket]
         else:
             selected_bank = "Sheet Benchmark"
             fetched_roi = v_data["interest_rate"]
-            
+
         bank_rate = st.number_input("Flat Interest Rate (ROI):", value=fetched_roi, format="%.4f", step=0.0001)
         
         st.markdown("---")
