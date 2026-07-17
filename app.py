@@ -108,19 +108,33 @@ def load_supplementary_data(file_path):
             df_bank = pd.read_excel(file_path, sheet_name='Bank Details')
             for _, row in df_bank.iterrows():
                 bank_name = str(row['Bank Name']).strip()
-                if not bank_name or bank_name == "nan": continue
+                if not bank_name or bank_name == "nan": 
+                    continue
                 
-                bank_data[bank_name] = {}
-                for i in range(1, 6):
-                    sb_col = f"Salary Bracket.{i}" if i > 1 else "Salary Bracket"
-                    roi_col = f"ROI.{i}" if i > 1 else "ROI"
+                # FIX: Initialize bank only if it's NOT already in bank_data 
+                # This prevents wiping out previously loaded brackets!
+                if bank_name not in bank_data:
+                    bank_data[bank_name] = {}
+                
+                # Check your actual vertical columns
+                sb_col = "Salary Bracket"
+                roi_col = "ROI"
+                
+                if sb_col in df_bank.columns and roi_col in df_bank.columns:
+                    sb_val = str(row[sb_col]).strip()
+                    roi_val = row[roi_col]
                     
-                    if sb_col in df_bank.columns and roi_col in df_bank.columns:
-                        sb_val = str(row[sb_col]).strip()
-                        roi_val = row[roi_col]
-                        if sb_val and sb_val != "nan" and pd.notna(roi_val):
-                            bank_data[bank_name][sb_val] = float(roi_val)
-        except:
+                    if sb_val and sb_val != "nan" and pd.notna(roi_val):
+                        # Convert ROI percentage (like "2.75%") to float if it's a string
+                        if isinstance(roi_val, str) and '%' in roi_val:
+                            roi_val = float(roi_val.replace('%', '').strip()) / 100
+                        else:
+                            roi_val = float(roi_val)
+                            
+                        bank_data[bank_name][sb_val] = roi_val
+        except Exception as e:
+            # Helpful to print in terminal during local runs, but safe fallback
+            print(f"Error parsing Bank Details: {e}")
             pass
 
         # Parse RMC Pricing Map
@@ -136,7 +150,8 @@ def load_supplementary_data(file_path):
                     "RMC-10-70": float(row['RMC-10-70']) if pd.notna(row['RMC-10-70']) else 0.0,
                     "RMC-10-100": float(row['RMC-10-100']) if pd.notna(row['RMC-10-100']) else 0.0,
                 }
-        except:
+        except Exception as e:
+            print(f"Error parsing RMC: {e}")
             pass
             
     return bank_data, rmc_data
