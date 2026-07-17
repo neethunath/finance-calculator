@@ -98,12 +98,13 @@ def get_clean_model_name(raw_name):
 # ------------------------------------------------------------------
 # MASTER EXCEL EXTRACTION ENGINE
 # ------------------------------------------------------------------
+from collections import OrderedDict
+
 @st.cache_data
 def load_supplementary_data(file_path):
     bank_data = {}
     rmc_data = {}
     if os.path.exists(file_path):
-        # Parse Bank Details
         try:
             df_bank = pd.read_excel(file_path, sheet_name='Bank Details')
             for _, row in df_bank.iterrows():
@@ -111,12 +112,10 @@ def load_supplementary_data(file_path):
                 if not bank_name or bank_name == "nan": 
                     continue
                 
-                # FIX: Initialize bank only if it's NOT already in bank_data 
-                # This prevents wiping out previously loaded brackets!
+                # FIX: Use OrderedDict to preserve the exact row order from the sheet
                 if bank_name not in bank_data:
-                    bank_data[bank_name] = {}
+                    bank_data[bank_name] = OrderedDict()
                 
-                # Check your actual vertical columns
                 sb_col = "Salary Bracket"
                 roi_col = "ROI"
                 
@@ -125,7 +124,6 @@ def load_supplementary_data(file_path):
                     roi_val = row[roi_col]
                     
                     if sb_val and sb_val != "nan" and pd.notna(roi_val):
-                        # Convert ROI percentage (like "2.75%") to float if it's a string
                         if isinstance(roi_val, str) and '%' in roi_val:
                             roi_val = float(roi_val.replace('%', '').strip()) / 100
                         else:
@@ -133,9 +131,9 @@ def load_supplementary_data(file_path):
                             
                         bank_data[bank_name][sb_val] = roi_val
         except Exception as e:
-            # Helpful to print in terminal during local runs, but safe fallback
             print(f"Error parsing Bank Details: {e}")
             pass
+
 
         # Parse RMC Pricing Map
         try:
